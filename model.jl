@@ -39,6 +39,7 @@ function active_generation_techs(scenario::Scenario)
     return techs
 end
 
+# Only fuel-consuming generation technologies should have fuel efficiency entries.
 fuel_use_mwh(tech::Technology, generation_mwh) =
     haskey(efficiency, tech) ? generation_mwh / efficiency[tech] : zero(generation_mwh)
 
@@ -75,6 +76,7 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
         @variable(model, transmission_flow[t in hours, line in directed_lines] >= 0)
     end
 
+    # These helpers let the load-balance constraint stay identical across scenarios.
     battery_charge_at(t, c) = scenario.allow_batteries ? battery_charge[t, c] : 0.0
     battery_discharge_at(t, c) = scenario.allow_batteries ? battery_discharge[t, c] : 0.0
     imports_at(t, c) =
@@ -124,6 +126,7 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
         @constraint(model, [t in hours, c in COUNTRIES], battery_charge[t, c] <= battery_capacity[c])
         @constraint(model, [t in hours, c in COUNTRIES], battery_discharge[t, c] <= battery_capacity[c])
         @constraint(model, [t in hours, c in COUNTRIES],
+            # Cyclic balance: the first hour uses the last hour as previous storage.
             battery_storage[t, c] ==
             battery_storage[t == first(hours) ? last(hours) : t - 1, c] +
             efficiency[:Battery] * battery_charge[t, c] -
@@ -133,6 +136,7 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
 
     if scenario.allow_transmission
         for (a, b) in undirected_lines
+            # Two directed variables represent one physical bidirectional line with equal capacity.
             @constraint(model, transmission_capacity[(a, b)] == transmission_capacity[(b, a)])
         end
         @constraint(model, [t in hours, line in directed_lines],
@@ -167,6 +171,7 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
         0.0
     transmission_investment_cost =
         scenario.allow_transmission ?
+        # Divide by 2 because each physical line is represented by two directed capacities.
         @expression(model, 0.5 * sum(annualized_cost_per_mw(:Transmission) *
                                      transmission_capacity[line] for line in directed_lines)) :
         0.0
