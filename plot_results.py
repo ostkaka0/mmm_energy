@@ -2,7 +2,6 @@
 
 import argparse
 import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -27,6 +26,23 @@ COLORS = {
     "Battery": "#10b981",
     "Nuclear": "#8b5cf6",
     "Load": "#111827",
+}
+
+TIMELINE_COMPONENTS = [
+    "Wind",
+    "PV",
+    "Gas",
+    "Hydro",
+    "Battery_discharge",
+    "Battery_charge",
+    "Nuclear",
+]
+TIMELINE_CMAP = plt.get_cmap("tab20")
+
+COUNTRY_LABELS = {
+    "de": "Germany",
+    "dk": "Denmark",
+    "se": "Sweden",
 }
 
 SCENARIOS_BY_EXERCISE = {
@@ -67,6 +83,23 @@ def scenarios_for_exercises(exercises):
     return scenarios
 
 
+def parse_country(value):
+    country = value.strip().lower()
+    if country not in COUNTRY_LABELS:
+        raise argparse.ArgumentTypeError("country must be one of: de, dk, se")
+    return country
+
+
+def timeline_color(name):
+    if name == "Load":
+        return "#6b7280"
+    if name == "Net supply":
+        return "#111827"
+    if name in TIMELINE_COMPONENTS:
+        return TIMELINE_CMAP(TIMELINE_COMPONENTS.index(name) * 2)
+    return COLORS.get(name, "#111827")
+
+
 def read_table(path):
     with open(path, "r", encoding="utf-8") as handle:
         header = handle.readline().strip().split()
@@ -97,18 +130,49 @@ def save_stacked(input_path, output_path, title, ylabel, show=False):
     plt.close(fig)
 
 
-def save_germany(input_path, output_path, title, ylabel, show=False):
+def save_country_timeline(input_path, output_path, title, ylabel, show=False):
     header, rows = read_table(input_path)
     columns = {
         name: [float(row[i]) for row in rows]
         for i, name in enumerate(header)
     }
+    net_supply = [
+        columns["Wind"][i]
+        + columns["PV"][i]
+        + columns["Gas"][i]
+        + columns["Hydro"][i]
+        + columns["Nuclear"][i]
+        + columns["Battery_discharge"][i]
+        - columns["Battery_charge"][i]
+        for i in range(len(columns["Hour"]))
+    ]
 
     fig, ax = plt.subplots(figsize=(10.5, 6.0))
+    ax.plot(
+        columns["Hour"],
+        columns["Load"],
+        label="Load",
+        linewidth=2.3,
+        color=timeline_color("Load"),
+    )
+    ax.plot(
+        columns["Hour"],
+        net_supply,
+        label="Net supply",
+        linewidth=2.0,
+        linestyle=":",
+        color=timeline_color("Net supply"),
+    )
     for name in header[1:]:
-        width = 2.3 if name == "Load" else 1.2
-        ax.plot(columns["Hour"], columns[name], label=name.replace("_", " "),
-                linewidth=width, color=COLORS.get(name))
+        if name == "Load":
+            continue
+        ax.plot(
+            columns["Hour"],
+            columns[name],
+            label=name.replace("_", " "),
+            linewidth=1.2,
+            color=timeline_color(name),
+        )
 
     ax.set_title(title)
     ax.set_xlabel("Hour")
@@ -150,32 +214,19 @@ def render(kind, input_path, output_path, title, ylabel, show=False):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if kind == "stacked":
         save_stacked(input_path, output_path, title, ylabel, show)
-    elif kind == "germany":
-        save_germany(input_path, output_path, title, ylabel, show)
+    elif kind == "country":
+        save_country_timeline(input_path, output_path, title, ylabel, show)
     elif kind == "transmission":
         save_transmission(input_path, output_path, title, ylabel, show)
     else:
         raise ValueError(f"unknown plot kind: {kind}")
 
 
-def run_solver(exercises, data_path):
-    cmd = [
-        "julia",
-        "--project=.",
-        str(ROOT / "run.jl"),
-        "--data",
-        data_path,
-    ]
-    for exercise in exercises:
-        cmd.extend(["--exercise", str(exercise)])
-    subprocess.run(cmd, cwd=ROOT, check=True)
-
-
 def scenario_has_data(scenario):
     return (PLOT_DIR / f"{scenario}_capacity.dat").exists()
 
 
-def plot_scenario(scenario, show=False):
+def plot_scenario(scenario, country, show=False):
     if not scenario_has_data(scenario):
         print(f"Skipping {scenario}: no plot data found.", file=sys.stderr)
         return
@@ -196,14 +247,18 @@ def plot_scenario(scenario, show=False):
         "MWh/year",
         show,
     )
-    render(
-        "germany",
-        PLOT_DIR / f"{scenario}_germany_147_651.dat",
-        PLOT_DIR / f"{scenario}_germany_147_651.pdf",
-        f"Germany generation and load, hours 147-651 - {scenario}",
-        "MWh/h",
-        show,
-    )
+    timeline_data = PLOT_DIR / f"{scenario}_{country}_147_651.dat"
+    if timeline_data.exists():
+        render(
+            "country",
+            timeline_data,
+            PLOT_DIR / f"{scenario}_{country}_147_651.pdf",
+            f"{COUNTRY_LABELS[country]} generation and load, hours 147-651 - {scenario}",
+            "MWh/h",
+            show,
+        )
+    else:
+        print(f"Skipping {scenario} {country}: no timeline plot data found.", file=sys.stderr)
 
     transmission_data = PLOT_DIR / f"{scenario}_transmission.dat"
     if transmission_data.exists():
@@ -222,7 +277,7 @@ def render_command(argv):
         prog="plot_results.py render",
         description="Render one plot from one plot data file.",
     )
-    parser.add_argument("kind", choices=["stacked", "germany", "transmission"])
+    parser.add_argument("kind", choices=["stacked", "country", "transmission"])
     parser.add_argument("input", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("title")
@@ -234,7 +289,7 @@ def render_command(argv):
 
 def exercise_command(argv):
     parser = argparse.ArgumentParser(
-        description="Plot assignment exercise outputs. Use --solve to run Julia first.",
+        description="Plot assignment exercise outputs.",
     )
     parser.add_argument(
         "--exercise",
@@ -242,18 +297,20 @@ def exercise_command(argv):
         action="append",
         help="Exercise number 1-4. Can be repeated or comma-separated. Defaults to all.",
     )
-    parser.add_argument("--solve", action="store_true", help="Run Julia for the requested exercises before plotting.")
     parser.add_argument("--show", action="store_true", help="Show plots interactively after saving PDF files.")
-    parser.add_argument("--data", "-d", default="TimeSeries.csv", help="CSV path passed to Julia when --solve is used.")
+    parser.add_argument(
+        "--country",
+        default="de",
+        type=parse_country,
+        help="Country for the hourly load/generation plot. One of: de, dk, se. Default: de.",
+    )
     args = parser.parse_args(argv)
 
     exercises = parse_exercise_list(args.exercise)
-    if args.solve:
-        run_solver(exercises, args.data)
 
     for scenario in scenarios_for_exercises(exercises):
         print(f"Rendering plots for {scenario}", flush=True)
-        plot_scenario(scenario, args.show)
+        plot_scenario(scenario, args.country, args.show)
 
     print(f"Plots written to {PLOT_DIR}")
 
@@ -261,8 +318,7 @@ def exercise_command(argv):
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "render":
         render_command(sys.argv[2:])
-    elif len(sys.argv) > 1 and sys.argv[1] in {"stacked", "germany", "transmission"}:
-        # Backward-compatible internal form used by older run.jl versions.
+    elif len(sys.argv) > 1 and sys.argv[1] in {"stacked", "country", "transmission"}:
         render_command(sys.argv[1:])
     else:
         exercise_command(sys.argv[1:])

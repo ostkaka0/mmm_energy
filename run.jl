@@ -335,20 +335,21 @@ function write_matrix_dat(path, result::ScenarioResult, metric)
     end
 end
 
-function write_germany_dat(path, data::TimeSeriesData, result::ScenarioResult)
+function write_country_dat(path, data::TimeSeriesData, result::ScenarioResult, country::Country)
     open(path, "w") do io
-        println(io, "Hour Load Wind PV Gas Hydro Nuclear Battery_discharge")
+        println(io, "Hour Load Wind PV Gas Hydro Nuclear Battery_discharge Battery_charge")
         for (i, hour) in enumerate(data.time)
             147 <= hour <= 651 || continue
             vals = Any[
                 hour,
-                data.load[:DE][i],
-                haskey(result.hourly_generation_mwh, (:DE, :Wind)) ? result.hourly_generation_mwh[(:DE, :Wind)][i] : 0.0,
-                haskey(result.hourly_generation_mwh, (:DE, :PV)) ? result.hourly_generation_mwh[(:DE, :PV)][i] : 0.0,
-                haskey(result.hourly_generation_mwh, (:DE, :Gas)) ? result.hourly_generation_mwh[(:DE, :Gas)][i] : 0.0,
-                haskey(result.hourly_generation_mwh, (:DE, :Hydro)) ? result.hourly_generation_mwh[(:DE, :Hydro)][i] : 0.0,
-                haskey(result.hourly_generation_mwh, (:DE, :Nuclear)) ? result.hourly_generation_mwh[(:DE, :Nuclear)][i] : 0.0,
-                result.hourly_battery_discharge_mwh[:DE][i],
+                data.load[country][i],
+                haskey(result.hourly_generation_mwh, (country, :Wind)) ? result.hourly_generation_mwh[(country, :Wind)][i] : 0.0,
+                haskey(result.hourly_generation_mwh, (country, :PV)) ? result.hourly_generation_mwh[(country, :PV)][i] : 0.0,
+                haskey(result.hourly_generation_mwh, (country, :Gas)) ? result.hourly_generation_mwh[(country, :Gas)][i] : 0.0,
+                haskey(result.hourly_generation_mwh, (country, :Hydro)) ? result.hourly_generation_mwh[(country, :Hydro)][i] : 0.0,
+                haskey(result.hourly_generation_mwh, (country, :Nuclear)) ? result.hourly_generation_mwh[(country, :Nuclear)][i] : 0.0,
+                result.hourly_battery_discharge_mwh[country][i],
+                result.hourly_battery_charge_mwh[country][i],
             ]
             println(io, join(vals, " "))
         end
@@ -375,11 +376,13 @@ function write_plot_data(data::TimeSeriesData, runs::Vector{ScenarioRun})
         slug = r.scenario.name
         capacity_dat = plot_file(slug, "capacity", "dat")
         production_dat = plot_file(slug, "production", "dat")
-        germany_dat = plot_file(slug, "germany_147_651", "dat")
 
         write_matrix_dat(capacity_dat, r, capacity_value)
         write_matrix_dat(production_dat, r, production_value)
-        write_germany_dat(germany_dat, data, r)
+        for country in COUNTRIES
+            country_dat = plot_file(slug, "$(lowercase(String(country)))_147_651", "dat")
+            write_country_dat(country_dat, data, r, country)
+        end
 
         if r.scenario.allow_transmission
             transmission_dat = plot_file(slug, "transmission", "dat")
