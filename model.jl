@@ -13,20 +13,20 @@ struct Scenario
 end
 
 struct ScenarioResult
-    scenario                     ::Scenario
-    status                       ::TerminationStatusCode # Status code returned by JuMP
-    total_cost_eur               ::Float64
-    total_emissions_ton          ::Float64
-    capacity_mw                  ::Dict{Tuple{Country, Technology}, Float64}
-    total_production_mwh         ::Dict{Tuple{Country, Technology}, Float64}
-    battery_capacity_mw          ::Dict{Country, Float64}
-    battery_discharge_mwh        ::Dict{Country, Float64}
-    transmission_capacity_mw     ::Dict{Tuple{Country, Country}, Float64}
-    transmitted_energy_mwh       ::Dict{Tuple{Country, Country}, Float64}
-    hourly_generation_mwh        ::Dict{Tuple{Country, Technology}, Vector{Float64}}
-    hourly_battery_discharge_mwh ::Dict{Country, Vector{Float64}}
-    hourly_battery_charge_mwh    ::Dict{Country, Vector{Float64}}
-    hourly_flow_mwh              ::Dict{Tuple{Country, Country}, Vector{Float64}}
+    scenario                          ::Scenario
+    status                            ::TerminationStatusCode # Status code returned by JuMP
+    total_cost_eur                    ::Float64 # Annualized system cost for the modeled year [EUR/year].
+    total_emissions_ton               ::Float64 # Summed over all modeled hours, which is one year.
+    capacity_mw                       ::Dict{Tuple{Country, Technology}, Float64}
+    total_production_mwh              ::Dict{Tuple{Country, Technology}, Float64}
+    battery_capacity_mw               ::Dict{Country, Float64}
+    total_battery_discharge_mwh       ::Dict{Country, Float64}
+    transmission_capacity_mw          ::Dict{Tuple{Country, Country}, Float64}
+    total_transmitted_energy_sent_mwh ::Dict{Tuple{Country, Country}, Float64} # Sent-side energy before transmission losses.
+    hourly_generation_mwh             ::Dict{Tuple{Country, Technology}, Vector{Float64}}
+    hourly_battery_discharge_mwh      ::Dict{Country, Vector{Float64}}
+    hourly_battery_charge_mwh         ::Dict{Country, Vector{Float64}}
+    hourly_flow_mwh                   ::Dict{Tuple{Country, Country}, Vector{Float64}} # Sent-side flow before transmission losses.
 end
 
 ################################################################################
@@ -184,7 +184,7 @@ function solve_scenario(data::TimeSeriesData, scenario::Scenario, optimizer)
         scenario.allow_batteries ?
         Dict(c => value(vars.battery_capacity[c]) for c in COUNTRIES) :
         Dict(c => 0.0 for c in COUNTRIES)
-    battery_discharge_mwh =
+    total_battery_discharge_mwh =
         scenario.allow_batteries ?
         Dict(c => sum(value(vars.battery_discharge[t, c]) for t in hours) for c in COUNTRIES) :
         Dict(c => 0.0 for c in COUNTRIES)
@@ -192,7 +192,7 @@ function solve_scenario(data::TimeSeriesData, scenario::Scenario, optimizer)
         scenario.allow_transmission ?
         Dict(line => value(vars.transmission_capacity[line]) for line in vars.directed_lines) :
         Dict{Tuple{Country, Country}, Float64}()
-    transmitted_energy_mwh =
+    total_transmitted_energy_sent_mwh =
         scenario.allow_transmission ?
         Dict(line => sum(value(vars.transmission_flow[t, line]) for t in hours) for line in vars.directed_lines) :
         Dict{Tuple{Country, Country}, Float64}()
@@ -220,9 +220,9 @@ function solve_scenario(data::TimeSeriesData, scenario::Scenario, optimizer)
         capacity_mw,
         total_production_mwh,
         battery_capacity_mw,
-        battery_discharge_mwh,
+        total_battery_discharge_mwh,
         transmission_capacity_mw,
-        transmitted_energy_mwh,
+        total_transmitted_energy_sent_mwh,
         hourly_generation_mwh,
         hourly_battery_discharge_mwh,
         hourly_battery_charge_mwh,

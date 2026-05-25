@@ -221,7 +221,7 @@ function capacity_value(result::ScenarioResult, country::Country, tech::Technolo
 end
 
 function production_value(result::ScenarioResult, country::Country, tech::Technology)
-    tech == :Battery && return result.battery_discharge_mwh[country]
+    tech == :Battery && return result.total_battery_discharge_mwh[country]
     return value_or_zero(result.total_production_mwh, (country, tech))
 end
 
@@ -240,6 +240,7 @@ function write_result_tables(data::TimeSeriesData, runs::Vector{ScenarioRun})
             push!(summary_rows, [run.scenario.name, run.status, "", "", "", "", run.message])
         else
             r = run.result
+            # total_cost_eur is conceptually EUR/year because investment costs are annualized.
             push!(summary_rows, [r.scenario.name, run.status, r.total_cost_eur,
                                  r.total_cost_eur / 1e9, r.total_emissions_ton,
                                  r.total_emissions_ton / 1e6, ""])
@@ -301,18 +302,19 @@ function write_result_tables(data::TimeSeriesData, runs::Vector{ScenarioRun})
         r = run.result
         for from in COUNTRIES, to in COUNTRIES
             from == to && continue
+            # Transmission energy is measured on the sending side, before the 2% loss.
             push!(transmission_rows, [
                 r.scenario.name,
                 from,
                 to,
                 value_or_zero(r.transmission_capacity_mw, (from, to)),
-                value_or_zero(r.transmitted_energy_mwh, (from, to)),
+                value_or_zero(r.total_transmitted_energy_sent_mwh, (from, to)),
             ])
         end
     end
     write_csv(
         joinpath(RESULT_DIR, "transmission.csv"),
-        ["scenario", "from", "to", "capacity_MW", "energy_MWh"],
+        ["scenario", "from", "to", "capacity_MW", "sent_energy_MWh"],
         transmission_rows,
     )
 end
@@ -355,11 +357,11 @@ end
 
 function write_transmission_dat(path, result::ScenarioResult)
     open(path, "w") do io
-        println(io, "Line Capacity_MW Energy_TWh")
+        println(io, "Line Capacity_MW Sent_energy_TWh")
         for (from, to) in [(:SE, :DK), (:DK, :SE), (:SE, :DE), (:DE, :SE), (:DK, :DE), (:DE, :DK)]
             label = "$(from)-$(to)"
             capacity = value_or_zero(result.transmission_capacity_mw, (from, to))
-            energy = value_or_zero(result.transmitted_energy_mwh, (from, to)) / 1e6
+            energy = value_or_zero(result.total_transmitted_energy_sent_mwh, (from, to)) / 1e6
             println(io, "$(label) $(capacity) $(energy)")
         end
     end
