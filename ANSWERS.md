@@ -12,15 +12,12 @@ Q: "Which technologies emerge? What explains the differences be"
 
 ## Exercise 2
 
-ex2a_90pct_co2_cap                               FAILED   Scenario ex2a_90pct_co2_cap ended with status INFEASIBLE
-ex2b_90pct_co2_cap_batteries                     cost    64.08 bn EUR/year  CO2    13.88
-
 ### 2a
 No feasible solution was found. My interpretation is that with given assumptions there is no way to meet demand with a 90% co2 cap relative to exercise 1.
 
 ### 2b
-cost: ?
-CO2: ?
+cost    64.08 bn EUR/year
+CO2    13.88 Mton/year
 
 For installed capacity:
 * Battery now has a very large capacity for all countries.
