@@ -93,6 +93,7 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
     end
 
     if :Hydro in techs
+        # Hydro capacity is fixed assignment data, not an investment decision.
         @constraint(model, [c in COUNTRIES], capacity[c, :Hydro] == max_capacity_mw[(c, :Hydro)])
     end
 

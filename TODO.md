@@ -30,6 +30,9 @@
 - Clean minor code TODOs if desired:
   - `data.jl`: replace repeated technology parameter dictionaries with a single structure.
   - `data.jl`: decide whether to remove explicit hydro entries for non-Sweden.
+  - Maybe remove hydro from the free `capacity` decision variable, since hydro capacity is fixed
+    by assignment data. This would be conceptually cleaner, but requires separate technology sets
+    for generation and investable capacity, plus special handling in constraints and result output.
 
 - Consider runtime/model improvements.
   Exercises 3 and 4 are slow. Deeper changes such as solver options, scaling, or time aggregation
