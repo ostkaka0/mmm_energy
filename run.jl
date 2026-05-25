@@ -8,7 +8,6 @@ include("model.jl")
 
 const RESULT_DIR = "results"
 const PLOT_DIR = "plots"
-const BASELINE_EMISSIONS_FILE = joinpath(RESULT_DIR, "baseline_emissions.txt")
 const ALL_OUTPUT_TECHS = [:Wind, :PV, :Gas, :Hydro, :Battery, :Nuclear]
 
 ################################################################################
@@ -118,39 +117,43 @@ function scenario_run(ctx::RunContext, scenario::Scenario)
     return run
 end
 
-function require_result(run::ScenarioRun, purpose::String)
-    run.result !== nothing && return run.result
-    error("Cannot $(purpose) because $(run.scenario.name) did not solve: $(run.message)")
-end
-
 function exercise1(ctx::RunContext)
     return [scenario_run(ctx, Scenario("ex1_no_cap_no_storage_no_trade", false, false, false, nothing))]
 end
 
-function baseline_emissions_ton(ctx::RunContext)
-    baseline_name = "ex1_no_cap_no_storage_no_trade"
-    if haskey(ctx.cache, baseline_name)
-        return require_result(ctx.cache[baseline_name], "compute the 90% CO2 reduction cap").total_emissions_ton
-    end
+function exercise_result_file(exercise::Int)
+    return joinpath(RESULT_DIR, "exercise_$(exercise)_results.csv")
+end
 
-    if isfile(BASELINE_EMISSIONS_FILE)
-        return parse(Float64, strip(read(BASELINE_EMISSIONS_FILE, String)))
-    end
-
-    error(
-        "Cannot compute the 90% CO2 reduction cap because Exercise 1 has not " *
-        "been solved in this run and $(BASELINE_EMISSIONS_FILE) does not exist. " *
+function baseline_emissions_ton()
+    path = exercise_result_file(1)
+    isfile(path) || error(
+        "Cannot compute the 90% CO2 reduction cap because $(path) does not exist. " *
         "Run `julia --project=. run.jl --exercise 1` first, or request Exercise 1 " *
         "together with this exercise."
     )
+
+    open(path, "r") do io
+        header = split(chomp(readline(io)), ",", keepempty = true)
+        emissions_idx = findfirst(==("co2_ton_per_year"), header)
+        emissions_idx !== nothing || error("Missing co2_ton_per_year column in $(path)")
+
+        eof(io) && error("Cannot compute the 90% CO2 reduction cap because $(path) has no result row.")
+        fields = split(chomp(readline(io)), ",", keepempty = true)
+        fields[1] == "ex1_no_cap_no_storage_no_trade" || error(
+            "Expected Exercise 1 baseline scenario in $(path), got $(fields[1])"
+        )
+        emissions_idx <= length(fields) || error("Missing CO2 value in Exercise 1 row in $(path)")
+        return parse(Float64, fields[emissions_idx])
+    end
 end
 
-function co2_cap_for_90pct_reduction(ctx::RunContext)
-    return 0.10 * baseline_emissions_ton(ctx)
+function co2_cap_for_90pct_reduction()
+    return 0.10 * baseline_emissions_ton()
 end
 
 function exercise2(ctx::RunContext)
-    cap = co2_cap_for_90pct_reduction(ctx)
+    cap = co2_cap_for_90pct_reduction()
     return [
         # TODO: Revisit this scenario with course supervision if it remains
         # infeasible. The strict 90% cap may be too tight before batteries or
@@ -161,14 +164,14 @@ function exercise2(ctx::RunContext)
 end
 
 function exercise3(ctx::RunContext)
-    cap = co2_cap_for_90pct_reduction(ctx)
+    cap = co2_cap_for_90pct_reduction()
     return [
         scenario_run(ctx, Scenario("ex3_90pct_co2_cap_batteries_transmission", true, true, false, cap)),
     ]
 end
 
 function exercise4(ctx::RunContext)
-    cap = co2_cap_for_90pct_reduction(ctx)
+    cap = co2_cap_for_90pct_reduction()
     return [
         scenario_run(ctx, Scenario("ex4_90pct_co2_cap_batteries_transmission_nuclear", true, true, true, cap)),
     ]
@@ -192,6 +195,8 @@ function run_requested_exercises(ctx::RunContext, exercises::Vector{Int})
                 push!(seen, run.scenario.name)
             end
         end
+
+        write_exercise_result_file(exercise, runs)
     end
 
     return ordered
@@ -215,6 +220,30 @@ function write_csv(path, header, rows)
     end
 end
 
+function write_exercise_result_file(exercise::Int, runs::Vector{ScenarioRun})
+    mkpath(RESULT_DIR)
+
+    rows = Any[]
+    for run in runs
+        if run.result === nothing
+            push!(rows, [run.scenario.name, run.status, "", "", "", "", run.message])
+        else
+            r = run.result
+            push!(rows, [r.scenario.name, run.status, r.total_cost_eur,
+                         r.total_cost_eur / 1e9, r.total_emissions_ton,
+                         r.total_emissions_ton / 1e6, ""])
+        end
+    end
+
+    write_csv(
+        exercise_result_file(exercise),
+        ["scenario", "status", "total_cost_EUR_per_year",
+         "total_cost_billion_EUR_per_year", "co2_ton_per_year",
+         "co2_Mton_per_year", "message"],
+        rows,
+    )
+end
+
 function capacity_value(result::ScenarioResult, country::Country, tech::Technology)
     tech == :Battery && return result.battery_capacity_mw[country]
     return value_or_zero(result.capacity_mw, (country, tech))
@@ -227,12 +256,6 @@ end
 
 function write_result_tables(data::TimeSeriesData, runs::Vector{ScenarioRun})
     mkpath(RESULT_DIR)
-
-    for run in successful_runs(runs)
-        if run.scenario.name == "ex1_no_cap_no_storage_no_trade"
-            write(BASELINE_EMISSIONS_FILE, string(run.result.total_emissions_ton))
-        end
-    end
 
     summary_rows = Any[]
     for run in runs
@@ -500,6 +523,7 @@ function write_report(data::TimeSeriesData, runs::Vector{ScenarioRun})
         end
 
         println(io, "## Generated Files")
+        println(io, "- `results/exercise_1_results.csv` through `results/exercise_4_results.csv`: per-exercise result tables, including the Exercise 1 baseline used for later CO2 caps.")
         println(io, "- `results/summary.csv`: total costs, emissions, and infeasible scenario status.")
         println(io, "- `results/installed_capacity.csv`: capacity by country and technology.")
         println(io, "- `results/annual_production.csv`: annual production by country and technology.")
