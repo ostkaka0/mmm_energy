@@ -21,6 +21,37 @@
   group-separator={,},
 }
 
+\newcommand{\plotplaceholder}[1]{%
+  \fbox{%
+    \begin{minipage}[c][0.62\textheight][c]{0.9\linewidth}
+      \centering
+      Plot file not generated yet:\\[0.5em]
+      \scriptsize\nolinkurl{#1}
+    \end{minipage}%
+  }%
+}
+
+\newcommand{\maybeplot}[2][0.95\linewidth]{%
+  \IfFileExists{#2}{%
+    \includegraphics[width=#1,height=0.68\textheight,keepaspectratio]{#2}%
+  }{%
+    \plotplaceholder{#2}%
+  }%
+}
+
+\newcommand{\twoplots}[2]{%
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.49\textwidth}
+      \centering
+      \maybeplot[\linewidth]{#1}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \centering
+      \maybeplot[\linewidth]{#2}
+    \end{column}
+  \end{columns}
+}
+
 \begin{document}
 
 \begin{frame}
@@ -92,12 +123,34 @@
   \end{itemize}
 \end{frame}
 
+\begin{frame}{Exercise 1: Capacity and Production}
+  \twoplots
+    {plots/ex1_no_cap_no_storage_no_trade_capacity.pdf}
+    {plots/ex1_no_cap_no_storage_no_trade_production.pdf}
+\end{frame}
+
+\begin{frame}{Exercise 1: Germany, Hours 147--651}
+  \centering
+  \maybeplot{plots/ex1_no_cap_no_storage_no_trade_de_147_651.pdf}
+\end{frame}
+
 \begin{frame}{Exercise 2: CO2 Cap and Batteries}
   \begin{itemize}
     \item Exercise 2a: explain infeasibility if no storage or trade is available.
     \item Exercise 2b: compare cost, emissions, capacity mix, and production mix against Exercise 1.
     \item Discuss why batteries reduce gas generation under the CO2 cap.
   \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercise 2b: Capacity and Production}
+  \twoplots
+    {plots/ex2b_90pct_co2_cap_batteries_capacity.pdf}
+    {plots/ex2b_90pct_co2_cap_batteries_production.pdf}
+\end{frame}
+
+\begin{frame}{Exercise 2b: Germany, Hours 147--651}
+  \centering
+  \maybeplot{plots/ex2b_90pct_co2_cap_batteries_de_147_651.pdf}
 \end{frame}
 
 \begin{frame}{Exercise 3: Transmission}
@@ -108,6 +161,22 @@
   \end{itemize}
 \end{frame}
 
+\begin{frame}{Exercise 3: Capacity and Production}
+  \twoplots
+    {plots/ex3_90pct_co2_cap_batteries_transmission_capacity.pdf}
+    {plots/ex3_90pct_co2_cap_batteries_transmission_production.pdf}
+\end{frame}
+
+\begin{frame}{Exercise 3: Germany, Hours 147--651}
+  \centering
+  \maybeplot{plots/ex3_90pct_co2_cap_batteries_transmission_de_147_651.pdf}
+\end{frame}
+
+\begin{frame}{Exercise 3: Transmission Capacity and Energy}
+  \centering
+  \maybeplot{plots/ex3_90pct_co2_cap_batteries_transmission_transmission.pdf}
+\end{frame}
+
 \begin{frame}{Exercise 4: Nuclear}
   \begin{itemize}
     \item Compare total system cost against Exercise 3.
@@ -115,6 +184,22 @@
     \item Identify which capacities are reduced when nuclear is available.
     \item Discuss sensitivity to investment cost, discount rate, CO2 cap, and renewable limits.
   \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercise 4: Capacity and Production}
+  \twoplots
+    {plots/ex4_90pct_co2_cap_batteries_transmission_nuclear_capacity.pdf}
+    {plots/ex4_90pct_co2_cap_batteries_transmission_nuclear_production.pdf}
+\end{frame}
+
+\begin{frame}{Exercise 4: Germany, Hours 147--651}
+  \centering
+  \maybeplot{plots/ex4_90pct_co2_cap_batteries_transmission_nuclear_de_147_651.pdf}
+\end{frame}
+
+\begin{frame}{Exercise 4: Transmission Capacity and Energy}
+  \centering
+  \maybeplot{plots/ex4_90pct_co2_cap_batteries_transmission_nuclear_transmission.pdf}
 \end{frame}
 
 \begin{frame}{Main Conclusions}
