@@ -32,21 +32,11 @@ COLORS = {
 SCENARIOS_BY_EXERCISE = {
     1: ["ex1_no_cap_no_storage_no_trade"],
     2: [
-        "ex1_no_cap_no_storage_no_trade",
         "ex2a_90pct_co2_cap",
         "ex2b_90pct_co2_cap_batteries",
     ],
-    3: [
-        "ex1_no_cap_no_storage_no_trade",
-        "ex2b_90pct_co2_cap_batteries",
-        "ex3_90pct_co2_cap_batteries_transmission",
-    ],
-    4: [
-        "ex1_no_cap_no_storage_no_trade",
-        "ex2b_90pct_co2_cap_batteries",
-        "ex3_90pct_co2_cap_batteries_transmission",
-        "ex4_90pct_co2_cap_batteries_transmission_nuclear",
-    ],
+    3: ["ex3_90pct_co2_cap_batteries_transmission"],
+    4: ["ex4_90pct_co2_cap_batteries_transmission_nuclear"],
 }
 
 
@@ -168,15 +158,13 @@ def render(kind, input_path, output_path, title, ylabel, show=False):
         raise ValueError(f"unknown plot kind: {kind}")
 
 
-def run_solver(exercises, data_path, solver):
+def run_solver(exercises, data_path):
     cmd = [
         "julia",
         "--project=.",
         str(ROOT / "run.jl"),
         "--data",
         data_path,
-        "--solver",
-        solver,
     ]
     for exercise in exercises:
         cmd.extend(["--exercise", str(exercise)])
@@ -257,12 +245,11 @@ def exercise_command(argv):
     parser.add_argument("--solve", action="store_true", help="Run Julia for the requested exercises before plotting.")
     parser.add_argument("--show", action="store_true", help="Show plots interactively after saving PDF files.")
     parser.add_argument("--data", "-d", default="TimeSeries.csv", help="CSV path passed to Julia when --solve is used.")
-    parser.add_argument("--solver", "-s", default="clp", choices=["clp", "gurobi"], help="Solver passed to Julia when --solve is used.")
     args = parser.parse_args(argv)
 
     exercises = parse_exercise_list(args.exercise)
     if args.solve:
-        run_solver(exercises, args.data, args.solver)
+        run_solver(exercises, args.data)
 
     for scenario in scenarios_for_exercises(exercises):
         print(f"Rendering plots for {scenario}", flush=True)

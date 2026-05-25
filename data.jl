@@ -1,6 +1,9 @@
 const COUNTRIES = [:SE, :DK, :DE]
 const COUNTRY_NAME = Dict(:SE => "Sweden", :DK => "Denmark", :DE => "Germany")
 
+const Country = Symbol
+const Technology = Symbol
+
 ################################################################################
 # Static assignment data
 ################################################################################
@@ -9,10 +12,11 @@ const GENERATION_TECHS = [:Wind, :PV, :Gas, :Hydro, :Nuclear]
 const DISPATCHABLE_TECHS = [:Gas, :Hydro, :Nuclear]
 const VARIABLE_RENEWABLES = [:Wind, :PV]
 
+# Unitless annual discount rate used for all technologies.
 const DISCOUNT_RATE = 0.05
 const HOURS_PER_YEAR = 8760
 
-# Costs from the assignment. Investment costs are converted from EUR/kW to EUR/MW.
+# Investment costs from the assignment, converted from EUR/kW to EUR/MW.
 const investment_cost_eur_per_mw = Dict(
     :Wind => 1_100_000.0,
     :PV => 600_000.0,
@@ -23,6 +27,7 @@ const investment_cost_eur_per_mw = Dict(
     :Nuclear => 7_700_000.0,
 )
 
+# Running costs in EUR/MWh_electricity produced.
 const running_cost_eur_per_mwh = Dict(
     :Wind => 0.1,
     :PV => 0.1,
@@ -33,6 +38,7 @@ const running_cost_eur_per_mwh = Dict(
     :Nuclear => 4.0,
 )
 
+# Fuel costs in EUR/MWh_fuel consumed.
 const fuel_cost_eur_per_mwh_fuel = Dict(
     :Wind => 0.0,
     :PV => 0.0,
@@ -43,6 +49,7 @@ const fuel_cost_eur_per_mwh_fuel = Dict(
     :Nuclear => 3.2,
 )
 
+# Technical lifetime in years.
 const lifetime_years = Dict(
     :Wind => 25.0,
     :PV => 25.0,
@@ -53,6 +60,8 @@ const lifetime_years = Dict(
     :Nuclear => 50.0,
 )
 
+# Unitless efficiencies. Gas and nuclear are MWh_electricity/MWh_fuel.
+# Battery is round-trip efficiency. Transmission is delivered/sent electricity.
 const efficiency = Dict(
     :Gas => 0.4,
     :Battery => 0.9,
@@ -60,6 +69,8 @@ const efficiency = Dict(
     :Nuclear => 0.4,
 )
 
+# TODO: Replace with a single const
+# Emissions in ton CO2/MWh_fuel consumed.
 const emission_factor_ton_per_mwh_fuel = Dict(
     :Wind => 0.0,
     :PV => 0.0,
@@ -68,7 +79,8 @@ const emission_factor_ton_per_mwh_fuel = Dict(
     :Nuclear => 0.0,
 )
 
-# Maximum installable capacity in MW.
+# Maximum installable generation capacity in MW.
+# TODO: Remove hydro from non-sweden maybe.
 const max_capacity_mw = Dict(
     (:SE, :Wind) => 280_000.0,
     (:DK, :Wind) => 90_000.0,
@@ -87,9 +99,17 @@ const max_capacity_mw = Dict(
     (:DE, :Nuclear) => Inf,
 )
 
-const HYDRO_RESERVOIR_SIZE_MWH = 33_000_000.0
+const HYDRO_RESERVOIR_SIZE_MWH = 33 * 1_000_000.0 # 33 TWh
 
-annualized_cost_per_mw(tech::Symbol) =
+
+# Annualized investment cost in EUR/MW/year.
+# AC = IC * r / (1 - 1 / (1+r)^lt)
+# where
+# * AC -- Annualized Cost [EUR/MW/year]
+# * IC -- investment cost [EUR/MW]
+# * r = 5% -- discount rate [unitless]
+# * lt -- lifetime [years]
+annualized_cost_per_mw(tech::Technology) =
     investment_cost_eur_per_mw[tech] *
     DISCOUNT_RATE / (1.0 - (1.0 / (1.0 + DISCOUNT_RATE)) ^ lifetime_years[tech])
 
@@ -99,8 +119,9 @@ annualized_cost_per_mw(tech::Symbol) =
 
 struct TimeSeriesData
     time::Vector{Int}
-    load::Dict{Symbol, Vector{Float64}}
-    capacity_factor::Dict{Tuple{Symbol, Symbol}, Vector{Float64}}
+    load::Dict{Country, Vector{Float64}}
+    # Wind_* and PV_* CSV columns, keyed by (country, technology), e.g. (:SE, :Wind).
+    capacity_factor::Dict{Tuple{Country, Technology}, Vector{Float64}}
     hydro_inflow::Vector{Float64}
 end
 

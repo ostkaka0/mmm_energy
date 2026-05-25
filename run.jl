@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 
-import Clp
+import HiGHS
 using Printf
 
 include("data.jl")
@@ -8,6 +8,7 @@ include("model.jl")
 
 const RESULT_DIR = "results"
 const PLOT_DIR = "plots"
+const BASELINE_EMISSIONS_FILE = joinpath(RESULT_DIR, "baseline_emissions.txt")
 const ALL_OUTPUT_TECHS = [:Wind, :PV, :Gas, :Hydro, :Battery, :Nuclear]
 
 ################################################################################
@@ -17,22 +18,21 @@ const ALL_OUTPUT_TECHS = [:Wind, :PV, :Gas, :Hydro, :Battery, :Nuclear]
 struct CliOptions
     data_path::String
     exercises::Vector{Int}
-    solver::String
 end
 
 function usage()
     return """
     Usage:
-      julia --project=. run.jl [--data TimeSeries.csv] [--exercise N ...] [--solver clp|gurobi]
+      julia --project=. run.jl [--data TimeSeries.csv] [--exercise N ...]
 
     Options:
       --data PATH, -d PATH       Path to the Canvas time-series CSV.
       --exercise N, -e N         Run exercise 1, 2, 3, or 4. Can be repeated.
                                  Comma-separated lists also work, e.g. -e 1,3.
-      --solver NAME, -s NAME     Solver to use: clp or gurobi. Default: clp.
       --help, -h                 Show this help text.
 
     If no --exercise flag is given, all exercises are run.
+    The optimization solver is HiGHS.
     """
 end
 
@@ -50,7 +50,6 @@ end
 function parse_cli(args)
     data_path = "TimeSeries.csv"
     exercises = Int[]
-    solver = "clp"
     i = 1
 
     while i <= length(args)
@@ -72,34 +71,13 @@ function parse_cli(args)
         elseif startswith(arg, "--exercise=")
             append!(exercises, parse_exercise_list(split(arg, "=", limit = 2)[2]))
             i += 1
-        elseif arg in ["--solver", "-s"]
-            i == length(args) && error("$(arg) requires a solver name")
-            solver = lowercase(args[i + 1])
-            i += 2
-        elseif startswith(arg, "--solver=")
-            solver = lowercase(split(arg, "=", limit = 2)[2])
-            i += 1
         else
             error("Unknown argument $(arg)\n$(usage())")
         end
     end
 
-    solver in ["clp", "gurobi"] || error("Solver must be clp or gurobi, got $(solver)")
     isempty(exercises) && append!(exercises, 1:4)
-    return CliOptions(data_path, sort(unique(exercises)), solver)
-end
-
-function optimizer_for_solver(solver::String)
-    if solver == "clp"
-        return Clp.Optimizer
-    end
-
-    try
-        @eval import Gurobi
-        return Gurobi.Optimizer
-    catch err
-        error("Gurobi was requested but is not available. Install Gurobi.jl and ensure the Gurobi license is configured. Original error: $(sprint(showerror, err))")
-    end
+    return CliOptions(data_path, sort(unique(exercises)))
 end
 
 ################################################################################
@@ -124,10 +102,16 @@ function scenario_run(ctx::RunContext, scenario::Scenario)
         return ctx.cache[scenario.name]
     end
 
+    println("Solving $(scenario.name)...")
+    flush(stdout)
     run = try
         result = solve_scenario(ctx.data, scenario, ctx.optimizer)
+        println("Solved $(scenario.name).")
+        flush(stdout)
         ScenarioRun(scenario, result, "OPTIMAL", "")
     catch err
+        println("Failed $(scenario.name): $(sprint(showerror, err))")
+        flush(stdout)
         ScenarioRun(scenario, nothing, "FAILED", sprint(showerror, err))
     end
     ctx.cache[scenario.name] = run
@@ -143,21 +127,34 @@ function exercise1(ctx::RunContext)
     return [scenario_run(ctx, Scenario("ex1_no_cap_no_storage_no_trade", false, false, false, nothing))]
 end
 
-function baseline_result(ctx::RunContext)
-    return require_result(exercise1(ctx)[1], "compute the 90% CO2 reduction cap")
+function baseline_emissions_ton(ctx::RunContext)
+    baseline_name = "ex1_no_cap_no_storage_no_trade"
+    if haskey(ctx.cache, baseline_name)
+        return require_result(ctx.cache[baseline_name], "compute the 90% CO2 reduction cap").total_emissions_ton
+    end
+
+    if isfile(BASELINE_EMISSIONS_FILE)
+        return parse(Float64, strip(read(BASELINE_EMISSIONS_FILE, String)))
+    end
+
+    error(
+        "Cannot compute the 90% CO2 reduction cap because Exercise 1 has not " *
+        "been solved in this run and $(BASELINE_EMISSIONS_FILE) does not exist. " *
+        "Run `julia --project=. run.jl --exercise 1` first, or request Exercise 1 " *
+        "together with this exercise."
+    )
 end
 
 function co2_cap_for_90pct_reduction(ctx::RunContext)
-    return 0.10 * baseline_result(ctx).total_emissions_ton
+    return 0.10 * baseline_emissions_ton(ctx)
 end
 
 function exercise2(ctx::RunContext)
     cap = co2_cap_for_90pct_reduction(ctx)
     return [
-        exercise1(ctx)[1],
-        # TODO: Revisit this scenario with Gurobi and/or course supervision. With
-        # the current data and formulation, Clp reports the strict 90% cap as
-        # infeasible before batteries or transmission are available.
+        # TODO: Revisit this scenario with course supervision if it remains
+        # infeasible. The strict 90% cap may be too tight before batteries or
+        # transmission are available.
         scenario_run(ctx, Scenario("ex2a_90pct_co2_cap", false, false, false, cap)),
         scenario_run(ctx, Scenario("ex2b_90pct_co2_cap_batteries", true, false, false, cap)),
     ]
@@ -166,8 +163,6 @@ end
 function exercise3(ctx::RunContext)
     cap = co2_cap_for_90pct_reduction(ctx)
     return [
-        exercise1(ctx)[1],
-        scenario_run(ctx, Scenario("ex2b_90pct_co2_cap_batteries", true, false, false, cap)),
         scenario_run(ctx, Scenario("ex3_90pct_co2_cap_batteries_transmission", true, true, false, cap)),
     ]
 end
@@ -175,9 +170,6 @@ end
 function exercise4(ctx::RunContext)
     cap = co2_cap_for_90pct_reduction(ctx)
     return [
-        exercise1(ctx)[1],
-        scenario_run(ctx, Scenario("ex2b_90pct_co2_cap_batteries", true, false, false, cap)),
-        scenario_run(ctx, Scenario("ex3_90pct_co2_cap_batteries_transmission", true, true, false, cap)),
         scenario_run(ctx, Scenario("ex4_90pct_co2_cap_batteries_transmission_nuclear", true, true, true, cap)),
     ]
 end
@@ -223,18 +215,24 @@ function write_csv(path, header, rows)
     end
 end
 
-function capacity_value(result::ScenarioResult, country::Symbol, tech::Symbol)
+function capacity_value(result::ScenarioResult, country::Country, tech::Technology)
     tech == :Battery && return result.battery_capacity_mw[country]
     return value_or_zero(result.capacity_mw, (country, tech))
 end
 
-function production_value(result::ScenarioResult, country::Symbol, tech::Symbol)
+function production_value(result::ScenarioResult, country::Country, tech::Technology)
     tech == :Battery && return result.battery_discharge_mwh[country]
-    return value_or_zero(result.production_mwh, (country, tech))
+    return value_or_zero(result.total_production_mwh, (country, tech))
 end
 
 function write_result_tables(data::TimeSeriesData, runs::Vector{ScenarioRun})
     mkpath(RESULT_DIR)
+
+    for run in successful_runs(runs)
+        if run.scenario.name == "ex1_no_cap_no_storage_no_trade"
+            write(BASELINE_EMISSIONS_FILE, string(run.result.total_emissions_ton))
+        end
+    end
 
     summary_rows = Any[]
     for run in runs
@@ -516,18 +514,19 @@ function main(args = ARGS)
     isfile(options.data_path) || error("Missing $(options.data_path). Put the Canvas TimeSeries.csv file in this directory or pass its path with --data.")
 
     data = read_timeseries(options.data_path)
-    ctx = RunContext(data, optimizer_for_solver(options.solver), Dict{String, ScenarioRun}())
+    ctx = RunContext(data, HiGHS.Optimizer, Dict{String, ScenarioRun}())
     runs = run_requested_exercises(ctx, options.exercises)
 
     write_result_tables(data, runs)
     write_plot_data(data, runs)
     write_report(data, runs)
 
-    println("Solver: $(options.solver)")
+    println("Solver: highs")
     println("Result tables written to $(RESULT_DIR)/")
     println("Plot data written to $(PLOT_DIR)/")
     exercise_arg = join(options.exercises, ",")
     println("Run `python plot_results.py --exercise $(exercise_arg)` to render PDF plots.")
+    println("Requested exercise outputs: $(exercise_arg)")
     for run in runs
         if run.result === nothing
             println(@sprintf("%-48s %-8s %s", run.scenario.name, run.status, run.message))
