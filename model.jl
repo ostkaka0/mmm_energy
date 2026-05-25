@@ -93,9 +93,7 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
     end
 
     if :Hydro in techs
-        @constraint(model, capacity[:SE, :Hydro] == max_capacity_mw[(:SE, :Hydro)])
-        @constraint(model, capacity[:DK, :Hydro] == 0)
-        @constraint(model, capacity[:DE, :Hydro] == 0)
+        @constraint(model, [c in COUNTRIES], capacity[c, :Hydro] == max_capacity_mw[(c, :Hydro)])
     end
 
     for t in hours, c in COUNTRIES, tech in techs
