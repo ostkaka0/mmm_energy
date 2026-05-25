@@ -65,7 +65,7 @@
     \item Exercise 2: 90\% CO2 reduction and batteries
     \item Exercise 3: transmission between countries
     \item Exercise 4: nuclear power
-    \item Main conclusions and limitations
+    \item Model limitations and discussion
   \end{enumerate}
 \end{frame}
 
@@ -108,18 +108,37 @@
 \end{frame}
 
 \begin{frame}{Average Capacity Factors}
-  \begin{itemize}
-    \item Present average wind capacity factors for Sweden, Denmark, and Germany.
-    \item Present average PV capacity factors for Sweden, Denmark, and Germany.
-    \item Use this information when discussing the exercise results.
-  \end{itemize}
+  \begin{table}
+    \centering
+    \begin{tabular}{lrr}
+      \toprule
+      Country & Wind & PV \\
+      \midrule
+      Sweden & 41.0\% & 10.0\% \\
+      Denmark & 32.0\% & 11.4\% \\
+      Germany & 28.5\% & 13.3\% \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
 \end{frame}
 
 \begin{frame}{Exercise 1: Baseline}
   \begin{itemize}
-    \item Present total system cost and CO2 emissions.
-    \item Explain which technologies emerge and why.
-    \item Explain the differences between countries.
+    \item Cost: 37.24 bn EUR/year.
+    \item CO2: 138.77 Mton/year.
+    \item Wind power is a major generation source in all three countries.
+    \item Gas plays a significant role in all three countries, but is smaller in Sweden.
+    \item PV is significant except in Sweden, and small in Denmark.
+    \item Hydro is significant in Sweden.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercise 1: Country Differences}
+  \begin{itemize}
+    \item PV differences are explained by average capacity factors: Germany has the highest, Sweden the lowest.
+    \item Sweden has good wind and existing hydro, so the solution uses both.
+    \item Germany has the largest demand, so it builds the largest capacities.
+    \item All countries use gas because there is no CO2 cap.
   \end{itemize}
 \end{frame}
 
@@ -136,9 +155,22 @@
 
 \begin{frame}{Exercise 2: CO2 Cap and Batteries}
   \begin{itemize}
-    \item Exercise 2a: describe what happens after adding the CO2 cap.
-    \item Exercise 2b: compare cost, emissions, capacity mix, and production mix against Exercise 1.
-    \item Explain the differences compared to Exercise 1.
+    \item Exercise 2a: no feasible solution was found.
+    \item With a 90\% CO2 cap, demand cannot be met without batteries or transmission.
+    \item The main issue is that wind and solar are variable, so demand cannot be met at some time points.
+    \item Exercise 2b cost: 64.08 bn EUR/year, increased from 37.24.
+    \item Exercise 2b CO2: 13.88 Mton/year, decreased from 138.77.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercise 2b: Mix Changes}
+  \begin{itemize}
+    \item Battery capacity is very large in all countries.
+    \item Germany has especially large battery and PV capacity.
+    \item Gas capacity is smaller, but still significant.
+    \item Production is mostly renewable: PV, wind, and hydro in Sweden.
+    \item Gas production is much lower for SE and DK.
+    \item Battery discharge is small for SE and DK, but large for DE.
   \end{itemize}
 \end{frame}
 
@@ -155,10 +187,12 @@
 
 \begin{frame}{Exercise 3: Transmission}
   \begin{itemize}
-    \item Examine the changes in the electricity system.
-    \item Compare total system costs with the previous exercises.
-    \item Explain the effect of transmission on generation capacities and overall cost.
-    \item Present installed transmission capacities and transmitted energy.
+    \item Cost: 48.52 bn EUR/year, decreased from 64.08.
+    \item CO2: 13.88 Mton/year, same as Exercise 2b.
+    \item Largest transmission capacity: SE-DE, 46.33 GW.
+    \item Largest transmitted energy flow: SE to DE, 131.60 TWh/year.
+    \item Transmission reduces the need for local overbuild and battery capacity.
+    \item Sweden exports much electricity because it has strong wind and hydro.
   \end{itemize}
 \end{frame}
 
@@ -180,11 +214,13 @@
 
 \begin{frame}{Exercise 4: Nuclear}
   \begin{itemize}
-    \item Compare total system costs with the previous exercises.
-    \item Does nuclear power emerge?
-    \item Which capacities are especially reduced?
-    \item Which parameters is this change sensitive to?
-    \item What country differences are there, and what do they depend on?
+    \item Cost: 43.52 bn EUR/year, decreased from 48.52.
+    \item CO2: 13.88 Mton/year, same as Exercise 3.
+    \item Nuclear emerges mainly in Germany: 42.50 GW.
+    \item Denmark gets only 0.16 GW nuclear, and Sweden gets none.
+    \item Battery usage decreases further, but is still used for variable solar and wind production.
+    \item Germany has very high demand and no hydro, so non-variable nuclear generation reduces battery needs.
+    \item The result is sensitive to nuclear cost, discount rate, renewable costs, battery cost, transmission cost, and the CO2 cap.
   \end{itemize}
 \end{frame}
 
