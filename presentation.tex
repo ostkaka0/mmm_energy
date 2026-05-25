@@ -1,0 +1,146 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{siunitx}
+
+\title[Electricity System Modelling]{Electricity System Modelling}
+\subtitle{CO2 Emissions, Storage and Transmission}
+\author{MVE347 Project}
+\institute{Miljo och Matematisk Modellering}
+\date{\today}
+
+\sisetup{
+  round-mode=places,
+  round-precision=2,
+  group-separator={,},
+}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Presentation Roadmap}
+  \begin{enumerate}
+    \item Model setup and assumptions
+    \item Exercise 1: baseline system without CO2 cap, storage, or trade
+    \item Exercise 2: 90\% CO2 reduction and batteries
+    \item Exercise 3: transmission between countries
+    \item Exercise 4: nuclear power
+    \item Main conclusions and limitations
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Model Scope}
+  \begin{itemize}
+    \item Countries: Sweden, Denmark, and Germany.
+    \item Time horizon: one full year with hourly load balance.
+    \item Objective: minimize annualized investment cost plus variable operating and fuel costs.
+    \item Technologies: wind, PV, gas, Swedish hydro, batteries, transmission, and nuclear.
+    \item Existing capacity: only Swedish hydro remains in 2050.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Core Constraints}
+  \begin{itemize}
+    \item Demand must be met in every country and every hour.
+    \item Wind and PV generation are limited by hourly capacity factors.
+    \item Swedish hydro has fixed turbine capacity and a cyclic reservoir balance.
+    \item Batteries shift energy over time with storage and charge/discharge limits.
+    \item Transmission shifts energy between countries with losses and capacity limits.
+    \item CO2 emissions from gas are capped in Exercises 2--4.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Scenario Overview}
+  \begin{table}
+    \centering
+    \begin{tabular}{lllll}
+      \toprule
+      Exercise & CO2 cap & Batteries & Transmission & Nuclear \\
+      \midrule
+      1 & No & No & No & No \\
+      2a & Yes & No & No & No \\
+      2b & Yes & Yes & No & No \\
+      3 & Yes & Yes & Yes & No \\
+      4 & Yes & Yes & Yes & Yes \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+\begin{frame}{Average Capacity Factors}
+  \begin{itemize}
+    \item Compare wind and PV resource quality across countries.
+    \item Use these differences to explain where the model builds renewables.
+    \item Connect renewable availability to the value of storage and transmission.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercise 1: Baseline}
+  \begin{itemize}
+    \item Present total system cost and CO2 emissions.
+    \item Explain which technologies emerge and why.
+    \item Discuss country differences from demand, renewable capacity factors, and Swedish hydro.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercise 2: CO2 Cap and Batteries}
+  \begin{itemize}
+    \item Exercise 2a: explain infeasibility if no storage or trade is available.
+    \item Exercise 2b: compare cost, emissions, capacity mix, and production mix against Exercise 1.
+    \item Discuss why batteries reduce gas generation under the CO2 cap.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercise 3: Transmission}
+  \begin{itemize}
+    \item Compare total system cost against Exercise 2b.
+    \item Explain how transmission changes generation capacity and storage needs.
+    \item Discuss which country pairs carry most transmission capacity and energy.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercise 4: Nuclear}
+  \begin{itemize}
+    \item Compare total system cost against Exercise 3.
+    \item State whether nuclear emerges and in which countries.
+    \item Identify which capacities are reduced when nuclear is available.
+    \item Discuss sensitivity to investment cost, discount rate, CO2 cap, and renewable limits.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Main Conclusions}
+  \begin{itemize}
+    \item A strict CO2 cap makes flexibility more valuable.
+    \item Batteries shift renewable energy over time, but can become very large in this simplified model.
+    \item Transmission allows countries to share renewable resources and balancing options.
+    \item Nuclear can reduce the need for renewable overbuild, storage, transmission, or gas backup.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Model Limitations}
+  \begin{itemize}
+    \item Stylized electricity-only model with simplified technology representation.
+    \item Battery power and energy capacity are tied together as 1 MW = 1 MWh.
+    \item Transmission grid is represented by aggregate country-to-country links.
+    \item Results should be interpreted as mechanism insights, not exact forecasts.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Discussion}
+  \begin{itemize}
+    \item What drives the main cost differences between scenarios?
+    \item Which constraints are most important for the final system configuration?
+    \item Which assumptions would most affect the results if changed?
+  \end{itemize}
+\end{frame}
+
+\end{document}

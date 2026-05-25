@@ -2,3 +2,11 @@
 __pycache__/
 plots/
 results/
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.out
+*.snm
+*.toc
