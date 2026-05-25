@@ -310,13 +310,19 @@ function write_result_tables(data::TimeSeriesData, runs::Vector{ScenarioRun})
             end
             push!(row, r.hourly_battery_discharge_mwh[:DE][i])
             push!(row, r.hourly_battery_charge_mwh[:DE][i])
+            imports = sum(efficiency[:Transmission] * get(r.hourly_flow_mwh, (from, :DE), zeros(length(data.time)))[i]
+                          for from in COUNTRIES if from != :DE)
+            exports = sum(get(r.hourly_flow_mwh, (:DE, to), zeros(length(data.time)))[i]
+                          for to in COUNTRIES if to != :DE)
+            push!(row, imports)
+            push!(row, exports)
             push!(hourly_rows, row)
         end
     end
     write_csv(
         joinpath(RESULT_DIR, "germany_hours_147_651.csv"),
         ["scenario", "hour", "Load", "Wind", "PV", "Gas", "Hydro", "Nuclear",
-         "Battery_discharge", "Battery_charge"],
+         "Battery_discharge", "Battery_charge", "Imports", "Exports"],
         hourly_rows,
     )
 
@@ -360,9 +366,13 @@ end
 
 function write_country_dat(path, data::TimeSeriesData, result::ScenarioResult, country::Country)
     open(path, "w") do io
-        println(io, "Hour Load Wind PV Gas Hydro Nuclear Battery_discharge Battery_charge")
+        println(io, "Hour Load Wind PV Gas Hydro Nuclear Battery_discharge Battery_charge Imports Exports")
         for (i, hour) in enumerate(data.time)
             147 <= hour <= 651 || continue
+            imports = sum(efficiency[:Transmission] * get(result.hourly_flow_mwh, (from, country), zeros(length(data.time)))[i]
+                          for from in COUNTRIES if from != country)
+            exports = sum(get(result.hourly_flow_mwh, (country, to), zeros(length(data.time)))[i]
+                          for to in COUNTRIES if to != country)
             vals = Any[
                 hour,
                 data.load[country][i],
@@ -373,6 +383,8 @@ function write_country_dat(path, data::TimeSeriesData, result::ScenarioResult, c
                 haskey(result.hourly_generation_mwh, (country, :Nuclear)) ? result.hourly_generation_mwh[(country, :Nuclear)][i] : 0.0,
                 result.hourly_battery_discharge_mwh[country][i],
                 result.hourly_battery_charge_mwh[country][i],
+                imports,
+                exports,
             ]
             println(io, join(vals, " "))
         end

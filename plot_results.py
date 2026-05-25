@@ -24,6 +24,10 @@ COLORS = {
     "Gas": "#6b7280",
     "Hydro": "#06b6d4",
     "Battery": "#10b981",
+    "Battery_charge": "#047857",
+    "Battery_discharge": "#10b981",
+    "Imports": "#2563eb",
+    "Exports": "#dc2626",
     "Nuclear": "#8b5cf6",
     "Load": "#111827",
 }
@@ -35,6 +39,8 @@ TIMELINE_COMPONENTS = [
     "Hydro",
     "Battery_discharge",
     "Battery_charge",
+    "Imports",
+    "Exports",
     "Nuclear",
 ]
 TIMELINE_CMAP = plt.get_cmap("tab20")
@@ -136,14 +142,23 @@ def save_country_timeline(input_path, output_path, title, ylabel, show=False):
         name: [float(row[i]) for row in rows]
         for i, name in enumerate(header)
     }
+    has_transmission = "_transmission_" in input_path.name
+    if has_transmission and ("Imports" not in columns or "Exports" not in columns):
+        raise ValueError(
+            f"{input_path} is stale: transmission timeline data must include "
+            "Imports and Exports. Regenerate plot data with run.jl before rendering."
+        )
+    zero = [0.0] * len(columns["Hour"])
     net_supply = [
-        columns["Wind"][i]
-        + columns["PV"][i]
-        + columns["Gas"][i]
-        + columns["Hydro"][i]
-        + columns["Nuclear"][i]
-        + columns["Battery_discharge"][i]
-        - columns["Battery_charge"][i]
+        columns.get("Wind", zero)[i]
+        + columns.get("PV", zero)[i]
+        + columns.get("Gas", zero)[i]
+        + columns.get("Hydro", zero)[i]
+        + columns.get("Nuclear", zero)[i]
+        + columns.get("Battery_discharge", zero)[i]
+        + columns.get("Imports", zero)[i]
+        - columns.get("Battery_charge", zero)[i]
+        - columns.get("Exports", zero)[i]
         for i in range(len(columns["Hour"]))
     ]
 
