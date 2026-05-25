@@ -21,7 +21,7 @@ const investment_cost_eur_per_mw = Dict(
     :Wind => 1_100_000.0,
     :PV => 600_000.0,
     :Gas => 550_000.0,
-    :Hydro => 0.0,
+    :Hydro => 0.0, # Note: We don't invest in additional hydro
     :Battery => 150_000.0,
     :Transmission => 2_500_000.0,
     :Nuclear => 7_700_000.0,
@@ -117,10 +117,11 @@ annualized_cost_per_mw(tech::Technology) =
 # Time-series loading
 ################################################################################
 
+# Data extracted from the .csv
 struct TimeSeriesData
     time::Vector{Int}
     load::Dict{Country, Vector{Float64}}
-    # Wind_* and PV_* CSV columns, keyed by (country, technology), e.g. (:SE, :Wind).
+    # Hourly wind/PV availability
     capacity_factor::Dict{Tuple{Country, Technology}, Vector{Float64}}
     hydro_inflow::Vector{Float64}
 end

@@ -89,44 +89,53 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
         sum(transmission_flow[t, (c, to)] for to in COUNTRIES if to != c) :
         0.0
 
+    # Capacity constraints: investable technologies are bounded by max_capacity_mw.
     for c in COUNTRIES, tech in techs
         max_cap = max_capacity_mw[(c, tech)]
         isfinite(max_cap) && @constraint(model, capacity[c, tech] <= max_cap)
     end
 
+    # Hydro capacity constraint: hydro capacity is fixed, so it's not optimized.
     if :Hydro in techs
-        # Hydro capacity is fixed assignment data, not an investment decision.
         @constraint(model, [c in COUNTRIES], capacity[c, :Hydro] == max_capacity_mw[(c, :Hydro)])
     end
 
+    # Generation capacity constraint: hourly generation cannot exceed installed capacity.
     for t in hours, c in COUNTRIES, tech in techs
         @constraint(model, generation[t, c, tech] <= capacity[c, tech])
     end
 
+    # Renewable availability constraint: wind and PV are limited by their hourly capacity factors.
     for t in hours, c in COUNTRIES, tech in renewable_techs
         @constraint(model, generation[t, c, tech] <=
                            data.capacity_factor[(c, tech)][t] * capacity[c, tech])
     end
 
+    # Hydro reservoir constraint: reservoir capacity and cyclic yearly balance.
     @constraint(model, [t in hours], hydro_storage[t] <= HYDRO_RESERVOIR_SIZE_MWH)
     if :Hydro in techs
         @constraint(model, [t in hours],
-            # Cyclic reservoir balance: the first hour uses the last hour as previous storage.
+            # Hydro cyclic balance: the first hour uses the last hour as previous storage.
             hydro_storage[t] ==
             hydro_storage[t == first(hours) ? last(hours) : t - 1] +
             data.hydro_inflow[t] -
             generation[t, :SE, :Hydro]
         )
     else
+        # No hydro in this scenario, so the reservoir state is fixed at zero.
         @constraint(model, [t in hours], hydro_storage[t] == 0)
     end
 
+    # Battery storage constraint: storage is capped by installed battery capacity and follows a cyclic balance.
     if scenario.allow_batteries
+        # Battery storage limit: stored energy cannot exceed installed battery capacity.
         @constraint(model, [t in hours, c in COUNTRIES], battery_storage[t, c] <= battery_capacity[c])
+        # Battery charge limit: charging power cannot exceed installed battery capacity.
         @constraint(model, [t in hours, c in COUNTRIES], battery_charge[t, c] <= battery_capacity[c])
+        # Battery discharge limit: discharging power cannot exceed installed battery capacity.
         @constraint(model, [t in hours, c in COUNTRIES], battery_discharge[t, c] <= battery_capacity[c])
+        # Battery storage balance: storage follows previous storage plus charge minus discharge; the first hour wraps to the last hour.
         @constraint(model, [t in hours, c in COUNTRIES],
-            # Cyclic balance: the first hour uses the last hour as previous storage.
             battery_storage[t, c] ==
             battery_storage[t == first(hours) ? last(hours) : t - 1, c] +
             efficiency[:Battery] * battery_charge[t, c] -
@@ -135,14 +144,17 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
     end
 
     if scenario.allow_transmission
+        # Transmission capacity constraint: opposite directions of a physical line must have equal capacity.
         for (a, b) in undirected_lines
-            # Two directed variables represent one physical bidirectional line with equal capacity.
+            # Transmission equality constraint: two directed variables represent one physical bidirectional line.
             @constraint(model, transmission_capacity[(a, b)] == transmission_capacity[(b, a)])
         end
+        # Transmission flow constraint: each directed flow is limited by its line capacity.
         @constraint(model, [t in hours, line in directed_lines],
             transmission_flow[t, line] <= transmission_capacity[line])
     end
 
+    # Load balance constraint: local generation plus imports and batteries must match demand.
     @constraint(model, [t in hours, c in COUNTRIES],
         sum(generation[t, c, tech] for tech in techs) +
         battery_discharge_at(t, c) +
@@ -152,33 +164,37 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
         exports_at(t, c)
     )
 
+    # Emissions expression: CO2 is summed over all modeled hours.
     emissions = @expression(model,
         sum(fuel_use_mwh(tech, generation[t, c, tech]) * emission_factor_ton_per_mwh_fuel[tech]
-            for t in hours, c in COUNTRIES, tech in techs)
+        for t in hours, c in COUNTRIES, tech in techs)
     )
 
+    # CO2 cap constraint
     if scenario.co2_cap_ton !== nothing
         @constraint(model, emissions <= scenario.co2_cap_ton)
     end
 
+    # Investment cost expressions: annualized cost for generation, batteries, and transmission.
     generation_investment_cost = @expression(model,
         sum(annualized_cost_per_mw(tech) * capacity[c, tech] for c in COUNTRIES, tech in techs)
     )
-    battery_investment_cost =
-        scenario.allow_batteries ?
-        @expression(model, sum(annualized_cost_per_mw(:Battery) * battery_capacity[c]
-                               for c in COUNTRIES)) :
-        0.0
-    transmission_investment_cost =
-        scenario.allow_transmission ?
+    battery_investment_cost = scenario.allow_batteries ?
+        @expression(model, sum(
+            annualized_cost_per_mw(:Battery) * battery_capacity[c]
+            for c in COUNTRIES)
+        ) : 0.0
+    transmission_investment_cost = scenario.allow_transmission ?
         # Divide by 2 because each physical line is represented by two directed capacities.
-        @expression(model, 0.5 * sum(annualized_cost_per_mw(:Transmission) *
-                                     transmission_capacity[line] for line in directed_lines)) :
-        0.0
+        @expression(model, 0.5 * sum(
+            annualized_cost_per_mw(:Transmission) * transmission_capacity[line]
+            for line in directed_lines)
+        ) : 0.0
     investment_cost = @expression(model,
         generation_investment_cost + battery_investment_cost + transmission_investment_cost
     )
 
+    # Variable cost expressions: running costs plus fuel costs; batteries add discharge cost.
     generation_variable_cost = @expression(model,
         sum(
             running_cost_eur_per_mwh[tech] * generation[t, c, tech] +
@@ -188,9 +204,10 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
     )
     battery_variable_cost =
         scenario.allow_batteries ?
-        @expression(model, sum(running_cost_eur_per_mwh[:Battery] * battery_discharge[t, c]
-                               for t in hours, c in COUNTRIES)) :
-        0.0
+        @expression(model, sum(
+           running_cost_eur_per_mwh[:Battery] * battery_discharge[t, c]
+           for t in hours, c in COUNTRIES)
+        ) : 0.0
     variable_cost = @expression(model,
         generation_variable_cost + battery_variable_cost
     )
@@ -207,7 +224,7 @@ function solve_scenario(data::TimeSeriesData, scenario::Scenario, optimizer)
     optimize!(model)
 
     status = termination_status(model)
-    status == OPTIMAL || error("Scenario $(scenario.name) ended with status $(status)")
+    status == OPTIMAL || error("Scenario $(scenario.name) ended with status $(status)") # Throws error if not optimal
 
     hours = eachindex(data.time)
     capacity_mw = Dict((c, tech) => value(vars.capacity[c, tech])
