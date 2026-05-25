@@ -9,21 +9,24 @@ Q: "Analyse the system cost and CO2-emissions for all three countries in total"
 
 Q: "Which technologies emerge? What explains the differences be"
 
-* Wind power is about a 1/3 to 1/2 for the three countries
-* gas plays a significant role for all three countires, but is quite small for sweden.
-* Photo-voltaics play a signnificant role as well except for sweden, and for denmark it's quite small.
-* For sweden hydro also plays a significant role.
+* Wind power is about 1/3 to 1/2 of production in all three countries.
+* Gas plays a significant role in all three countries, but is smaller in Sweden.
+* PV is significant except in Sweden, and small in Denmark.
+* Hydro is significant in Sweden.
 
 Explanation:
 
-* PV difference is explained by the different average capacity factors, germany has highest, sweden lowest.
-* Sweden already has good wind and hydro power to begin with, so the solution will have as well.
-* All countires have high gas power, because there is no CO2 cap.
+* PV differences are explained by average capacity factors: Germany has the highest, Sweden the lowest.
+* Sweden has good wind and existing hydro, so the solution uses both.
+* All countries use gas because there is no CO2 cap.
 
 ## Exercise 2
 
 ### 2a
-No feasible solution was found. My interpretation is that with given assumptions there is no way to meet demand with a 90% co2 cap relative to exercise 1. The big problem is that wind and solar are variable energy sources, so for certain time points demand can't be met.
+
+* No feasible solution was found.
+* With a 90% CO2 cap, demand cannot be met under the given assumptions.
+* The main issue is that wind and solar are variable, so demand cannot be met at some time points.
 
 ### 2b
 
@@ -32,19 +35,19 @@ No feasible solution was found. My interpretation is that with given assumptions
 
 For installed capacity:
 
-* Battery now has a very large capacity for all countries.
-* Capacity for gas is smaller for all countries, but still significant.
+* Battery capacity is very large in all countries.
+* Gas capacity is smaller, but still significant.
 
 For annual production:
 
-* Mostly renewable: photo-voltaics, wind, and hydro(sweden only).
-* Gas power is near-zero for SE and DK.
-* batteries play a very small role for SE and DK, but a big role for DE.
+* Production is mostly renewable: PV, wind, and hydro in Sweden.
+* Gas production is much lower for SE and DK.
+* Battery discharge is small for SE and DK, but large for DE.
 
 Explaination:
 
-* The CO2 is decreased by 90% as that was a constraint.
-* The cost increased, probably due to the big usage of batteries.
+* CO2 decreases by 90%, as required by the constraint.
+* Cost increases, probably due to the large battery buildout.
 
 
 
@@ -55,18 +58,16 @@ Explaination:
 
 Explaination:
 
-* Overal production and battery usage is decreased when we allow for transmission between countries. That explain the reduction in cost.
+* Overall production and battery usage decrease when transmission is allowed, explaining the cost reduction.
 
 
 # Exercise 4
-
-total_cost_billion_EUR_per_year,co2_ton_per_year,co2_Mton_per_year,
 
 * Cost: 43.518216183426155 bn EUR/year
 * CO2: 13.88 (same)
 
 Explaination:
 
-* Battery usage decrease further, however it's still used to deal with the variable energy production from solar+wind.
-* Nuclear power is mostly only needed for germany, where for sweden and denmark its usage is close to zero.
-* My thinking is that because of the very high demans of germany combined with the fact germany doesn't already have renewable energy to the degree of sweden and denmark, that it does help the large demands, but with a non-variable generation that allows germany to use less batteries.
+* Battery usage decreases further, but is still used for variable solar and wind production.
+* Nuclear power is mostly used in Germany; usage in Sweden and Denmark is close to zero.
+* Germany has very high demand and no hydro, so non-variable nuclear generation reduces battery needs.
