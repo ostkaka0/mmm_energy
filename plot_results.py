@@ -135,7 +135,7 @@ def save_transmission(input_path, output_path, title, ylabel, show=False):
     ax1.grid(axis="y", alpha=0.25)
 
     ax2.bar(labels, energy, color="#ef4444")
-    ax2.set_ylabel("TWh/year")
+    ax2.set_ylabel("MWh/year")
     ax2.grid(axis="y", alpha=0.25)
     ax2.tick_params(axis="x", rotation=35)
 

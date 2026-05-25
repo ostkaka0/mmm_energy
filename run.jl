@@ -357,11 +357,11 @@ end
 
 function write_transmission_dat(path, result::ScenarioResult)
     open(path, "w") do io
-        println(io, "Line Capacity_MW Sent_energy_TWh")
+        println(io, "Line Capacity_MW Sent_energy_MWh")
         for (from, to) in [(:SE, :DK), (:DK, :SE), (:SE, :DE), (:DE, :SE), (:DK, :DE), (:DE, :DK)]
             label = "$(from)-$(to)"
             capacity = value_or_zero(result.transmission_capacity_mw, (from, to))
-            energy = value_or_zero(result.total_transmitted_energy_sent_mwh, (from, to)) / 1e6
+            energy = value_or_zero(result.total_transmitted_energy_sent_mwh, (from, to))
             println(io, "$(label) $(capacity) $(energy)")
         end
     end
