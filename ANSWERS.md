@@ -15,7 +15,7 @@ Q: "Analyse the system cost and CO2-emissions for all three countries in total"
 
 Q: "Which technologies emerge? What explains the differences between countries?"
 
-* Wind power is about 1/3 to 1/2 of production in all three countries.
+* Wind power is a major generation source in all three countries.
 * Gas plays a significant role in all three countries, but is smaller in Sweden.
 * PV is significant except in Sweden, and small in Denmark.
 * Hydro is significant in Sweden.
@@ -32,7 +32,7 @@ Explanation:
 ### 2a
 
 * No feasible solution was found.
-* With a 90% CO2 cap, demand cannot be met under the given assumptions.
+* With a 90% CO2 cap, demand cannot be met without batteries or transmission.
 * The main issue is that wind and solar are variable, so demand cannot be met at some time points.
 
 ### 2b
@@ -43,6 +43,7 @@ Explanation:
 For installed capacity:
 
 * Battery capacity is very large in all countries.
+* Germany has especially large battery and PV capacity.
 * Gas capacity is smaller, but still significant.
 
 For annual production:
@@ -51,7 +52,7 @@ For annual production:
 * Gas production is much lower for SE and DK.
 * Battery discharge is small for SE and DK, but large for DE.
 
-Explaination:
+Explanation:
 
 * CO2 decreases by 90%, as required by the constraint.
 * Cost increases, probably due to the large battery buildout.
@@ -65,7 +66,7 @@ Explaination:
 * Largest transmission capacity: SE-DE, 46.33 GW.
 * Largest transmitted energy flow: SE to DE, 131.60 TWh/year.
 
-Explaination:
+Explanation:
 
 * Transmission reduces the need for local overbuild and battery capacity.
 * Sweden exports much electricity because it has strong wind and hydro.
@@ -79,9 +80,9 @@ Explaination:
 * Nuclear emerges mainly in Germany: 42.50 GW.
 * Denmark gets only 0.16 GW nuclear, and Sweden gets none.
 
-Explaination:
+Explanation:
 
 * Battery usage decreases further, but is still used for variable solar and wind production.
 * Nuclear power is mostly used in Germany; usage in Sweden and Denmark is close to zero.
 * Germany has very high demand and no hydro, so non-variable nuclear generation reduces battery needs.
-* The result is sensitive to nuclear cost, renewable costs, battery cost, transmission cost, and the CO2 cap.
+* The result is sensitive to nuclear cost, discount rate, renewable costs, battery cost, transmission cost, and the CO2 cap.
