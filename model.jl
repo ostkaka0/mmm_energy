@@ -45,7 +45,11 @@ fuel_use_mwh(tech::Technology, generation_mwh) =
 function build_model(data::TimeSeriesData, scenario::Scenario)
     hours = eachindex(data.time)
     techs = active_generation_techs(scenario)
+    # One directed transmission line for each ordered country pair, e.g. SE->DE and DE->SE.
     directed_lines = [(from, to) for from in COUNTRIES for to in COUNTRIES if from != to]
+    undirected_lines = [(COUNTRIES[i], COUNTRIES[j])
+                        for i in eachindex(COUNTRIES) for j in i+1:length(COUNTRIES)]
+    renewable_techs = intersect(techs, VARIABLE_RENEWABLES)
 
     model = Model()
 
@@ -57,8 +61,31 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
     battery_charge = nothing
     battery_discharge = nothing
     battery_storage = nothing
+    if scenario.allow_batteries
+        @variable(model, battery_capacity[c in COUNTRIES] >= 0)
+        @variable(model, battery_charge[t in hours, c in COUNTRIES] >= 0)
+        @variable(model, battery_discharge[t in hours, c in COUNTRIES] >= 0)
+        @variable(model, battery_storage[t in hours, c in COUNTRIES] >= 0)
+    end
+
     transmission_capacity = nothing
     transmission_flow = nothing
+    if scenario.allow_transmission
+        @variable(model, transmission_capacity[line in directed_lines] >= 0)
+        @variable(model, transmission_flow[t in hours, line in directed_lines] >= 0)
+    end
+
+    battery_charge_at(t, c) = scenario.allow_batteries ? battery_charge[t, c] : 0.0
+    battery_discharge_at(t, c) = scenario.allow_batteries ? battery_discharge[t, c] : 0.0
+    imports_at(t, c) =
+        scenario.allow_transmission ?
+        sum(efficiency[:Transmission] * transmission_flow[t, (from, c)]
+            for from in COUNTRIES if from != c) :
+        0.0
+    exports_at(t, c) =
+        scenario.allow_transmission ?
+        sum(transmission_flow[t, (c, to)] for to in COUNTRIES if to != c) :
+        0.0
 
     for c in COUNTRIES, tech in techs
         max_cap = max_capacity_mw[(c, tech)]
@@ -75,7 +102,7 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
         @constraint(model, generation[t, c, tech] <= capacity[c, tech])
     end
 
-    for t in hours, c in COUNTRIES, tech in intersect(techs, VARIABLE_RENEWABLES)
+    for t in hours, c in COUNTRIES, tech in renewable_techs
         @constraint(model, generation[t, c, tech] <=
                            data.capacity_factor[(c, tech)][t] * capacity[c, tech])
     end
@@ -83,6 +110,7 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
     @constraint(model, [t in hours], hydro_storage[t] <= HYDRO_RESERVOIR_SIZE_MWH)
     if :Hydro in techs
         @constraint(model, [t in hours],
+            # Cyclic reservoir balance: the first hour uses the last hour as previous storage.
             hydro_storage[t] ==
             hydro_storage[t == first(hours) ? last(hours) : t - 1] +
             data.hydro_inflow[t] -
@@ -93,11 +121,6 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
     end
 
     if scenario.allow_batteries
-        @variable(model, battery_capacity[c in COUNTRIES] >= 0)
-        @variable(model, battery_charge[t in hours, c in COUNTRIES] >= 0)
-        @variable(model, battery_discharge[t in hours, c in COUNTRIES] >= 0)
-        @variable(model, battery_storage[t in hours, c in COUNTRIES] >= 0)
-
         @constraint(model, [t in hours, c in COUNTRIES], battery_storage[t, c] <= battery_capacity[c])
         @constraint(model, [t in hours, c in COUNTRIES], battery_charge[t, c] <= battery_capacity[c])
         @constraint(model, [t in hours, c in COUNTRIES], battery_discharge[t, c] <= battery_capacity[c])
@@ -110,10 +133,7 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
     end
 
     if scenario.allow_transmission
-        @variable(model, transmission_capacity[line in directed_lines] >= 0)
-        @variable(model, transmission_flow[t in hours, line in directed_lines] >= 0)
-
-        for (a, b) in [(COUNTRIES[i], COUNTRIES[j]) for i in eachindex(COUNTRIES) for j in i+1:length(COUNTRIES)]
+        for (a, b) in undirected_lines
             @constraint(model, transmission_capacity[(a, b)] == transmission_capacity[(b, a)])
         end
         @constraint(model, [t in hours, line in directed_lines],
@@ -122,14 +142,11 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
 
     @constraint(model, [t in hours, c in COUNTRIES],
         sum(generation[t, c, tech] for tech in techs) +
-        (scenario.allow_batteries ? battery_discharge[t, c] : 0.0) +
-        (scenario.allow_transmission ?
-            sum(efficiency[:Transmission] * transmission_flow[t, (from, c)]
-                for from in COUNTRIES if from != c) : 0.0) ==
+        battery_discharge_at(t, c) +
+        imports_at(t, c) ==
         data.load[c][t] +
-        (scenario.allow_batteries ? battery_charge[t, c] : 0.0) +
-        (scenario.allow_transmission ?
-            sum(transmission_flow[t, (c, to)] for to in COUNTRIES if to != c) : 0.0)
+        battery_charge_at(t, c) +
+        exports_at(t, c)
     )
 
     emissions = @expression(model,
@@ -141,24 +158,37 @@ function build_model(data::TimeSeriesData, scenario::Scenario)
         @constraint(model, emissions <= scenario.co2_cap_ton)
     end
 
+    generation_investment_cost = @expression(model,
+        sum(annualized_cost_per_mw(tech) * capacity[c, tech] for c in COUNTRIES, tech in techs)
+    )
+    battery_investment_cost =
+        scenario.allow_batteries ?
+        @expression(model, sum(annualized_cost_per_mw(:Battery) * battery_capacity[c]
+                               for c in COUNTRIES)) :
+        0.0
+    transmission_investment_cost =
+        scenario.allow_transmission ?
+        @expression(model, 0.5 * sum(annualized_cost_per_mw(:Transmission) *
+                                     transmission_capacity[line] for line in directed_lines)) :
+        0.0
     investment_cost = @expression(model,
-        sum(annualized_cost_per_mw(tech) * capacity[c, tech] for c in COUNTRIES, tech in techs) +
-        (scenario.allow_batteries ?
-            sum(annualized_cost_per_mw(:Battery) * battery_capacity[c] for c in COUNTRIES) : 0.0) +
-        (scenario.allow_transmission ?
-            0.5 * sum(annualized_cost_per_mw(:Transmission) * transmission_capacity[line]
-                      for line in directed_lines) : 0.0)
+        generation_investment_cost + battery_investment_cost + transmission_investment_cost
     )
 
-    variable_cost = @expression(model,
+    generation_variable_cost = @expression(model,
         sum(
             running_cost_eur_per_mwh[tech] * generation[t, c, tech] +
             fuel_cost_eur_per_mwh_fuel[tech] * fuel_use_mwh(tech, generation[t, c, tech])
             for t in hours, c in COUNTRIES, tech in techs
-        ) +
-        (scenario.allow_batteries ?
-            sum(running_cost_eur_per_mwh[:Battery] * battery_discharge[t, c]
-                for t in hours, c in COUNTRIES) : 0.0)
+        )
+    )
+    battery_variable_cost =
+        scenario.allow_batteries ?
+        @expression(model, sum(running_cost_eur_per_mwh[:Battery] * battery_discharge[t, c]
+                               for t in hours, c in COUNTRIES)) :
+        0.0
+    variable_cost = @expression(model,
+        generation_variable_cost + battery_variable_cost
     )
 
     @objective(model, Min, investment_cost + variable_cost)
