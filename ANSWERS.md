@@ -1,5 +1,11 @@
 # Assignment answers
 
+## Average capacity factors
+
+* Sweden: wind 41.0%, PV 10.0%.
+* Denmark: wind 32.0%, PV 11.4%.
+* Germany: wind 28.5%, PV 13.3%.
+
 ## Exercise 1
 
 Q: "Analyse the system cost and CO2-emissions for all three countries in total"
@@ -7,7 +13,7 @@ Q: "Analyse the system cost and CO2-emissions for all three countries in total"
 * Cost: 37.24 bn EUR/year
 * CO2: 138.77 Mton/year
 
-Q: "Which technologies emerge? What explains the differences be"
+Q: "Which technologies emerge? What explains the differences between countries?"
 
 * Wind power is about 1/3 to 1/2 of production in all three countries.
 * Gas plays a significant role in all three countries, but is smaller in Sweden.
@@ -18,6 +24,7 @@ Explanation:
 
 * PV differences are explained by average capacity factors: Germany has the highest, Sweden the lowest.
 * Sweden has good wind and existing hydro, so the solution uses both.
+* Germany has the largest demand, so it builds the largest capacities.
 * All countries use gas because there is no CO2 cap.
 
 ## Exercise 2
@@ -53,21 +60,28 @@ Explaination:
 
 ## Exercise 3
 
-* Cost: 48.52160360884222 bn EUR/year (decrease from 64.08)
-* CO2: 13.88 (same)
+* Cost: 48.52 bn EUR/year (decrease from 64.08).
+* CO2: 13.88 Mton/year (same).
+* Largest transmission capacity: SE-DE, 46.33 GW.
+* Largest transmitted energy flow: SE to DE, 131.60 TWh/year.
 
 Explaination:
 
-* Overall production and battery usage decrease when transmission is allowed, explaining the cost reduction.
+* Transmission reduces the need for local overbuild and battery capacity.
+* Sweden exports much electricity because it has strong wind and hydro.
+* Germany can import from Sweden instead of relying only on local PV, wind, batteries, and gas.
 
 
-# Exercise 4
+## Exercise 4
 
-* Cost: 43.518216183426155 bn EUR/year
-* CO2: 13.88 (same)
+* Cost: 43.52 bn EUR/year (decrease from 48.52).
+* CO2: 13.88 Mton/year (same).
+* Nuclear emerges mainly in Germany: 42.50 GW.
+* Denmark gets only 0.16 GW nuclear, and Sweden gets none.
 
 Explaination:
 
 * Battery usage decreases further, but is still used for variable solar and wind production.
 * Nuclear power is mostly used in Germany; usage in Sweden and Denmark is close to zero.
 * Germany has very high demand and no hydro, so non-variable nuclear generation reduces battery needs.
+* The result is sensitive to nuclear cost, renewable costs, battery cost, transmission cost, and the CO2 cap.
